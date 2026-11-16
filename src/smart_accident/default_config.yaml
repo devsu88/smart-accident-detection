@@ -19,8 +19,8 @@ rules:
   react_s: 2.0            # deceleration must follow a fresh contact within this time
   baseline_s: [0.5, 2.0]  # "before" speed window, seconds before now
   now_s: 0.3              # "now" speed window
-  min_speed: 0.5          # a vehicle must have been moving at least this fast
-  drop_ratio: 0.6         # both vehicles must lose at least this share of their speed
+  min_speed: 0.5          # the pair must have been moving relative to each other this fast
+  drop_ratio: 0.6         # share of that relative speed that must vanish
   cooldown_s: 5.0         # one event per vehicle pair per cooldown
   stopped_s: 10.0         # stopped-vehicle alarm after this long
   stop_speed: 0.05

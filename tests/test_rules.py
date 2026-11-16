@@ -25,6 +25,17 @@ def test_rear_end_collision_with_one_vehicle_already_slowing():
     assert kinds(detect_incidents(scene)) == ["collision"]
 
 
+def test_moving_vehicle_hitting_a_stationary_one_is_detected():
+    # B waits at x=700; A drives into it at 150 px/s and stops dead on contact.
+    scene = frames({1: moving(0, 100, 150, stop_at=4.8), 2: moving(700, 100, 0)}, 10)
+    assert kinds(detect_incidents(scene)) == ["collision"]
+
+
+def test_driving_past_a_stationary_vehicle_is_not_an_incident():
+    scene = frames({1: moving(0, 100, 150), 2: moving(700, 112, 0)}, 10)
+    assert detect_incidents(scene) == []
+
+
 def test_pass_by_occlusion_at_constant_speed_is_not_an_incident():
     scene = frames({1: moving(0, 100, 100), 2: moving(-100, 112, 160)}, 12)
     assert detect_incidents(scene) == []

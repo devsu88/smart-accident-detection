@@ -17,7 +17,7 @@ def _tracks(args):
     config = load_config(args.config)
     if args.model:
         config["model"]["name"] = args.model
-    write_jsonl(args.output, extract_tracks(args.video, config))
+    write_jsonl(args.output, extract_tracks(args.video, config, stride=args.stride))
     print(f"Tracks written to {args.output}")
 
 
@@ -55,6 +55,7 @@ def main(argv=None):
     p.add_argument("video")
     p.add_argument("-o", "--output", required=True)
     p.add_argument("--config")
+    p.add_argument("--stride", type=int, default=1, help="process every Nth frame (60 fps: 4 gives 15)")
     p.add_argument("--model", help="detector name, e.g. rtdetr_r18vd or FasterRCNN_ResNet50_FPN")
     p.set_defaults(func=_tracks)
 

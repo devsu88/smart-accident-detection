@@ -12,8 +12,11 @@ from smart_surveillance.tracking import SortTracker
 from .io import frame_row
 
 
-def extract_tracks(video_path, config, detector=None, tracker=None):
-    """Yield one tracks row per frame. Pass ``detector``/``tracker`` to inject your own (tests do)."""
+def extract_tracks(video_path, config, detector=None, tracker=None, stride=1):
+    """Yield one tracks row per processed frame (every ``stride``-th).
+
+    Pass ``detector``/``tracker`` to inject your own (tests do).
+    """
     detector = detector or build_detector(config)
     t = config.get("tracking", {})
     tracker = tracker or SortTracker(max_age=t.get("max_age", 5), min_hits=t.get("min_hits", 3),
@@ -28,6 +31,9 @@ def extract_tracks(video_path, config, detector=None, tracker=None):
             ok, frame = cap.read()
             if not ok:
                 break
+            if index % stride:
+                index += 1
+                continue
             detections = detector.detect(frame)
             tracks = tracker.update(detections if len(detections) else np.empty((0, 6)))
             yield frame_row(index / fps, tracks)

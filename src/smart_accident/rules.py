@@ -2,9 +2,11 @@
 
 Two rules, both built to avoid firing on a single noisy signal:
 
-- **collision**: two vehicles make *fresh* contact and, within a short time, *both* lose most of
-  the speed they had before. Overlap alone is not enough (perspective occlusion overlaps boxes all
-  the time) and neither is slowing down alone (traffic does that).
+- **collision**: two vehicles make *fresh* contact and, within a short time, their *relative* speed
+  collapses: they were closing in on each other or moving relative to each other, and now they are
+  not. That covers two moving vehicles stopping together and a moving vehicle hitting a stopped one.
+  Overlap alone is not enough (perspective occlusion overlaps boxes all the time) and neither is
+  slowing down alone (traffic does that).
 - **stopped vehicle**: a vehicle sits still inside the configured road polygon for a long time,
   unless several others are stopped too (a jam).
 
@@ -47,6 +49,8 @@ class _Track:
         self.box = box
         self.speed = 0.0
         self.samples = deque()  # (t, smoothed speed)
+        self.positions = {t: self._centre(box)}  # t -> box centre, for relative-speed estimates
+        self.heights = {t: box[3] - box[1]}
         self.stopped_since = None
         self.alerted = False
 
@@ -62,13 +66,35 @@ class _Track:
             while self.samples and t - self.samples[0][0] > HISTORY_S:
                 self.samples.popleft()
         self.last_t, self.box = t, box
+        self.positions[t] = self._centre(box)
+        self.heights[t] = box[3] - box[1]
+        for old in [k for k in self.positions if t - k > HISTORY_S]:
+            del self.positions[old], self.heights[old]
+
+    @staticmethod
+    def _centre(box):
+        return ((box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0)
 
     def speed_between(self, t0, t1):
         values = [s for ts, s in self.samples if t0 <= ts <= t1]
         return float(np.median(values)) if values else None
 
     def centre(self):
-        return ((self.box[0] + self.box[2]) / 2.0, (self.box[1] + self.box[3]) / 2.0)
+        return self._centre(self.box)
+
+
+def relative_speed(a, b, t0, t1):
+    """Speed of ``a`` relative to ``b`` over [t0, t1] in box-heights per second, or None.
+
+    Fits a straight line to the difference of the two centres, so box jitter averages out.
+    """
+    times = sorted(t for t in a.positions if t0 <= t <= t1 and t in b.positions)
+    if len(times) < 3 or times[-1] - times[0] <= 0:
+        return None
+    diff = np.array([np.subtract(a.positions[t], b.positions[t]) for t in times])
+    sx, sy = (np.polyfit(times, diff[:, k], 1)[0] for k in (0, 1))
+    height = np.mean([a.heights[t] for t in times] + [b.heights[t] for t in times])
+    return float(math.hypot(sx, sy) / max(1.0, height))
 
 
 def overlap_ratio(a, b):
@@ -127,22 +153,23 @@ class IncidentDetector:
                 since = self._contact_since.setdefault(key, t)
                 if t - since > r.react_s or t - self._last_fired.get(key, -math.inf) < r.cooldown_s:
                     continue
-                drops = [self._speed_drop(t, tr) for tr in (a, b)]
-                if all(d is not None and d >= r.drop_ratio for d in drops):
+                drop = self._relative_speed_drop(t, a, b)
+                if drop is not None and drop >= r.drop_ratio:
                     self._last_fired[key] = t
                     incidents.append(
                         Incident("collision", round(t, 3), [a.id, b.id], [a.class_id, b.class_id],
-                                 score=round(min(drops), 3), details={"contact_since": round(since, 3)})
+                                 score=round(drop, 3), details={"contact_since": round(since, 3)})
                     )
         for key in [k for k in self._contact_since if k not in touching]:
             del self._contact_since[key]
         return incidents
 
-    def _speed_drop(self, t, track):
-        """Share of its earlier speed the vehicle has lost, or None if it was not really moving."""
+    def _relative_speed_drop(self, t, a, b):
+        """Share of its earlier relative speed the pair has lost, or None if they were not moving
+        relative to each other (a jam, or two vehicles standing still)."""
         r = self.rules
-        before = track.speed_between(t - r.baseline_s[1], t - r.baseline_s[0])
-        now = track.speed_between(t - r.now_s, t)
+        before = relative_speed(a, b, t - r.baseline_s[1], t - r.baseline_s[0])
+        now = relative_speed(a, b, t - r.now_s, t)
         if before is None or now is None or before < r.min_speed:
             return None
         return max(0.0, 1.0 - now / before)

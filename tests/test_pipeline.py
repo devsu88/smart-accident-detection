@@ -40,6 +40,12 @@ def test_extract_tracks_yields_one_row_per_frame_with_video_time(video):
     assert rows[-1]["tracks"] and rows[-1]["tracks"][0][5] == 3  # tracked car keeps its class
 
 
+def test_stride_skips_frames_but_keeps_video_time(video):
+    rows = list(extract_tracks(video, {}, detector=ScriptedDetector(), stride=4))
+    assert len(rows) == 10
+    assert rows[1]["t"] == pytest.approx(0.4)
+
+
 def test_extract_tracks_rejects_a_missing_video(tmp_path):
     with pytest.raises(FileNotFoundError):
         list(extract_tracks(tmp_path / "nope.mp4", {}, detector=ScriptedDetector()))
