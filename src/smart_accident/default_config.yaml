@@ -1,0 +1,29 @@
+# Detector settings, read by smart_surveillance.detection.build_detector.
+model:
+  name: "rtdetr_r18vd"
+  confidence_threshold: 0.5
+  device: "cuda:0"  # falls back to cpu
+
+tracking:
+  # COCO ids (91-slot numbering): bicycle, car, motorcycle, bus, truck
+  classes: [2, 3, 4, 6, 8]
+  max_age: 5
+  min_hits: 3
+
+# Incident rules. Speeds are in box-heights per second, so they do not depend on camera distance.
+rules:
+  vehicle_classes: [3, 4, 6, 8]
+  min_track_s: 0.5        # ignore tracks younger than this
+  speed_ema: 0.4          # smoothing of the per-frame speed (1 = none)
+  overlap_min: 0.10       # intersection / smaller box that counts as contact
+  react_s: 2.0            # deceleration must follow a fresh contact within this time
+  baseline_s: [0.5, 2.0]  # "before" speed window, seconds before now
+  now_s: 0.3              # "now" speed window
+  min_speed: 0.5          # a vehicle must have been moving at least this fast
+  drop_ratio: 0.6         # both vehicles must lose at least this share of their speed
+  cooldown_s: 5.0         # one event per vehicle pair per cooldown
+  stopped_s: 10.0         # stopped-vehicle alarm after this long
+  stop_speed: 0.05
+  jam_count: 3            # this many stopped vehicles at once is a jam, not an incident
+  # Road area in pixels, [[x, y], ...]. Without it the stopped-vehicle rule is off.
+  road_polygon: null

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+# Videos, tracks and events are inputs/outputs of a run, never committed.
+*.mp4
+*.avi
+*.mkv
+data/
+outputs/

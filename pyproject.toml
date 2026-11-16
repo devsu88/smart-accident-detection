@@ -1,0 +1,44 @@
+[project]
+name = "smart-accident-detection"
+version = "0.1.0"
+description = "Rule-based road incident detection on tracked vehicles, with an evaluation harness"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "smart-surveillance @ git+https://github.com/devsu88/smart-surveillance@a5d0f51",
+    "numpy>=2.5.0",
+    "opencv-python>=4.13.0.92",
+    "pyyaml>=6.0.3",
+]
+
+[project.optional-dependencies]
+# Only needed by the `tracks` command (video -> tracks). Pick the detector backend.
+# These forward to smart-surveillance's extras; its PyTorch CUDA index pin does not carry over,
+# so torch comes from PyPI unless you add your own [tool.uv.sources] entry.
+rtdetr = ["smart-surveillance[rtdetr] @ git+https://github.com/devsu88/smart-surveillance@a5d0f51"]
+torchvision = ["smart-surveillance[torchvision] @ git+https://github.com/devsu88/smart-surveillance@a5d0f51"]
+
+[project.scripts]
+smart-accident = "smart_accident.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/smart_accident"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
